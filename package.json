@@ -1,0 +1,23 @@
+{
+  "name": "backend-tele",
+  "version": "1.0.0",
+  "description": "Calling API for the React Expo and Website Monitoring",
+  "homepage": "https://github.com/Rezzadty/BackendTele#readme",
+  "bugs": {
+    "url": "https://github.com/Rezzadty/BackendTele/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rezzadty/BackendTele.git"
+  },
+  "license": "ISC",
+  "author": "Rezzu.",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
