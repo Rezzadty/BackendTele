@@ -1,7 +1,7 @@
 {
   "name": "backend-tele",
   "version": "1.0.0",
-  "description": "Calling API for the React Expo and Website Monitoring",
+  "description": "Backend API for Telegram notifications and Firebase monitoring",
   "homepage": "https://github.com/Rezzadty/BackendTele#readme",
   "bugs": {
     "url": "https://github.com/Rezzadty/BackendTele/issues"

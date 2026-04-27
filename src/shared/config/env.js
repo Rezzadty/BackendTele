@@ -1,33 +1,8 @@
-const DEFAULT_EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-
-function parsePort(value, fallback) {
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
 function parsePositiveInteger(value, fallback) {
   const parsed = Number(value);
 
   if (!Number.isInteger(parsed) || parsed <= 0) {
     return fallback;
-  }
-
-  return parsed;
-}
-
-function parseOptionalNumber(value) {
-  if (value === undefined || value === null || String(value).trim() === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return null;
   }
 
   return parsed;
@@ -51,16 +26,15 @@ function parseBoolean(value, fallback) {
 }
 
 const env = {
-  PORT: parsePort(process.env.PORT, 3000),
-  EXPO_PUSH_URL: process.env.EXPO_PUSH_URL || DEFAULT_EXPO_PUSH_URL,
+  PORT: parsePositiveInteger(process.env.PORT, 3000),
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
   TELEGRAM_DEFAULT_CHAT_ID: process.env.TELEGRAM_DEFAULT_CHAT_ID || "",
-  TELEGRAM_BACKUP_MODE: process.env.TELEGRAM_BACKUP_MODE || "on-failure",
-  FIREBASE_DATABASE_URL:
-    process.env.FIREBASE_DATABASE_URL ||
-    process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ||
-    "",
+  FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL || "",
   FIREBASE_AUTH_TOKEN: process.env.FIREBASE_AUTH_TOKEN || "",
+  FIREBASE_API_KEY:
+    process.env.FIREBASE_API_KEY || process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
+  FIREBASE_AUTH_EMAIL: process.env.FIREBASE_AUTH_EMAIL || "",
+  FIREBASE_AUTH_PASSWORD: process.env.FIREBASE_AUTH_PASSWORD || "",
   FIREBASE_SENSOR_PATH: process.env.FIREBASE_SENSOR_PATH || "sensor/latest",
   ENABLE_FIREBASE_POLLING_WORKER: parseBoolean(
     process.env.ENABLE_FIREBASE_POLLING_WORKER,
@@ -70,11 +44,15 @@ const env = {
     process.env.FIREBASE_POLL_INTERVAL_MS,
     5000
   ),
+  SENSOR_STATUS_FIELDS:
+    process.env.SENSOR_STATUS_FIELDS || process.env.SENSOR_STATUS_FIELD || "status",
+  SENSOR_DANGER_STATUS_VALUES:
+    process.env.SENSOR_DANGER_STATUS_VALUES ||
+    process.env.SENSOR_BAD_STATUS_VALUES ||
+    "warning,danger,error,critical",
   SENSOR_STATUS_FIELD: process.env.SENSOR_STATUS_FIELD || "status",
   SENSOR_BAD_STATUS_VALUES:
     process.env.SENSOR_BAD_STATUS_VALUES || "warning,danger,error,critical",
-  SENSOR_VALUE_FIELD: process.env.SENSOR_VALUE_FIELD || "",
-  SENSOR_VALUE_THRESHOLD: parseOptionalNumber(process.env.SENSOR_VALUE_THRESHOLD),
   SENSOR_EVENT_TIMESTAMP_FIELD:
     process.env.SENSOR_EVENT_TIMESTAMP_FIELD || "updatedAt",
   ALERT_ON_MISSING_DATA: parseBoolean(process.env.ALERT_ON_MISSING_DATA, true),
@@ -86,7 +64,6 @@ const env = {
     process.env.SEND_RESOLVED_NOTIFICATION,
     true
   ),
-  DEFAULT_EXPO_PUSH_TOKEN: process.env.DEFAULT_EXPO_PUSH_TOKEN || "",
   DEFAULT_TELEGRAM_CHAT_ID:
     process.env.DEFAULT_TELEGRAM_CHAT_ID ||
     process.env.TELEGRAM_DEFAULT_CHAT_ID ||
@@ -95,10 +72,18 @@ const env = {
 
 function getRuntimeWarnings() {
   const warnings = [];
+  const hasFirebaseToken = Boolean(env.FIREBASE_AUTH_TOKEN);
+  const hasFirebaseEmailPasswordAuth = Boolean(
+    env.FIREBASE_API_KEY && env.FIREBASE_AUTH_EMAIL && env.FIREBASE_AUTH_PASSWORD
+  );
+  const hasPartialFirebaseEmailPasswordAuth =
+    Boolean(env.FIREBASE_API_KEY) ||
+    Boolean(env.FIREBASE_AUTH_EMAIL) ||
+    Boolean(env.FIREBASE_AUTH_PASSWORD);
 
   if (!env.TELEGRAM_BOT_TOKEN) {
     warnings.push(
-      "TELEGRAM_BOT_TOKEN is empty. Telegram backup notification will be skipped."
+      "TELEGRAM_BOT_TOKEN is empty. Telegram notification will be skipped."
     );
   }
 
@@ -115,24 +100,30 @@ function getRuntimeWarnings() {
   }
 
   if (env.ENABLE_FIREBASE_POLLING_WORKER && !env.FIREBASE_AUTH_TOKEN) {
+    if (!hasFirebaseEmailPasswordAuth) {
+      warnings.push(
+        "Firebase auth is incomplete. Provide FIREBASE_AUTH_TOKEN, or FIREBASE_API_KEY + FIREBASE_AUTH_EMAIL + FIREBASE_AUTH_PASSWORD for automatic token refresh."
+      );
+    }
+  }
+
+  if (
+    env.ENABLE_FIREBASE_POLLING_WORKER &&
+    !hasFirebaseToken &&
+    hasPartialFirebaseEmailPasswordAuth &&
+    !hasFirebaseEmailPasswordAuth
+  ) {
     warnings.push(
-      "FIREBASE_AUTH_TOKEN is empty. Polling works only when database read rules allow public read."
+      "Partial Firebase email/password auth config found. Set all of FIREBASE_API_KEY, FIREBASE_AUTH_EMAIL, and FIREBASE_AUTH_PASSWORD."
     );
   }
 
   if (
     env.ENABLE_FIREBASE_POLLING_WORKER &&
-    !env.DEFAULT_EXPO_PUSH_TOKEN &&
     (!env.TELEGRAM_BOT_TOKEN || !env.DEFAULT_TELEGRAM_CHAT_ID)
   ) {
     warnings.push(
-      "DEFAULT_EXPO_PUSH_TOKEN is empty and Telegram defaults are incomplete. Worker may detect issues but cannot deliver notifications."
-    );
-  }
-
-  if (env.SENSOR_VALUE_FIELD && env.SENSOR_VALUE_THRESHOLD === null) {
-    warnings.push(
-      "SENSOR_VALUE_FIELD is set but SENSOR_VALUE_THRESHOLD is empty/invalid. Numeric threshold rule will be ignored."
+      "Telegram defaults are incomplete. Worker may detect issues but cannot deliver notifications."
     );
   }
 

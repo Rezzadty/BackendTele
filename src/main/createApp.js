@@ -3,7 +3,7 @@ const {
   createNotificationRoutes,
 } = require("../presentation/routes/notificationRoutes");
 
-function createApp({ sendNotificationWithBackup }) {
+function createApp({ sendTelegramNotification }) {
   const app = express();
 
   app.use(express.json());
@@ -18,7 +18,7 @@ function createApp({ sendNotificationWithBackup }) {
 
   app.use(
     "/api/notifications",
-    createNotificationRoutes({ sendNotificationWithBackup })
+    createNotificationRoutes({ sendTelegramNotification })
   );
 
   app.use((error, _req, res, _next) => {

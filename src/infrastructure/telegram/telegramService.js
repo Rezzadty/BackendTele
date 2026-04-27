@@ -1,10 +1,4 @@
-async function safeJson(response) {
-  try {
-    return await response.json();
-  } catch (_error) {
-    return null;
-  }
-}
+const { safeJson } = require("../../shared/utils/http");
 
 class TelegramService {
   constructor({ botToken, defaultChatId }) {

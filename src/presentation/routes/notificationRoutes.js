@@ -16,7 +16,7 @@ function validateSendPayload(payload) {
   return null;
 }
 
-function createNotificationRoutes({ sendNotificationWithBackup }) {
+function createNotificationRoutes({ sendTelegramNotification }) {
   const router = express.Router();
 
   router.post("/send", async (req, res, next) => {
@@ -30,19 +30,11 @@ function createNotificationRoutes({ sendNotificationWithBackup }) {
         });
       }
 
-      const result = await sendNotificationWithBackup.execute(req.body);
-
-      let statusCode = 200;
-      if (!result.expo.success && result.telegram.success) {
-        statusCode = 202;
-      }
-
-      if (!result.expo.success && !result.telegram.success) {
-        statusCode = 500;
-      }
+      const result = await sendTelegramNotification.execute(req.body);
+      const statusCode = result.telegram.success ? 200 : 500;
 
       return res.status(statusCode).json({
-        ok: statusCode < 500,
+        ok: result.telegram.success,
         result,
       });
     } catch (error) {

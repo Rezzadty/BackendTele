@@ -6,33 +6,26 @@
 
 # Telegram Backend (Express.js)
 
-This project uses Express.js. It is built to check Firebase data updates from the microcontroller and send notifications to Telegram.
+This project uses Express.js. It checks Firebase Realtime Database updates from the microcontroller and sends notifications through a Telegram bot.
 
-For now, this repository has a scratch implementation for notification delivery flow:
+Current implementation flow:
 
-1. Send notification to Expo Push API (for React Expo app)
-2. Trigger Telegram backup notification based on backup mode
-3. Poll Firebase Realtime Database to detect issue/recovery events automatically
+1. Send Telegram notification manually through API endpoint.
+2. Poll Firebase Realtime Database to detect issue/recovery events automatically.
+3. Send alert/recovery messages to Telegram from worker process.
 
 ## Layer Overview
 
 - domain: business rules and interfaces
 - application: use cases and application logic
-- infrastructure: Firebase and Telegram implementations
+- infrastructure: Telegram implementation
 - presentation: Express.js routes and background workers
 - main: app bootstrap and dependency wiring
 
-## Scratch Flow
+## Notification API
 
 - Endpoint: `POST /api/notifications/send`
-- Primary channel: Expo Push Notification
-- Backup channel: Telegram Bot
-
-Telegram backup behavior can be controlled with `TELEGRAM_BACKUP_MODE`:
-
-- `on-failure` (default): Telegram only when Expo fails
-- `always`: Always send Telegram
-- `off`: Never send Telegram
+- Channel: Telegram Bot
 
 ## Quick Start
 
@@ -48,28 +41,36 @@ If you use Windows PowerShell to create `.env`:
 Copy-Item .env.example .env
 ```
 
-### Which values from Expo .env are reused?
+## Environment Variables
 
-- `EXPO_PUBLIC_FIREBASE_DATABASE_URL` can be reused as `FIREBASE_DATABASE_URL` for backend polling.
-- `EXPO_PUBLIC_FIREBASE_PROJECT_ID` is useful for future admin SDK integration, but not required for current REST polling worker.
-- `EXPO_PUBLIC_FIREBASE_API_KEY` and other `EXPO_PUBLIC_*` client vars are mainly for mobile/web client SDK, not for backend alert logic.
-
-If your Firebase rules are protected, you also need:
-
-- `FIREBASE_AUTH_TOKEN` (database auth token) or another server-side auth approach.
-
-For backend notifications you still need backend-only values:
+Telegram:
 
 - `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_DEFAULT_CHAT_ID` (or request-level `telegramChatId`)
-- `DEFAULT_EXPO_PUSH_TOKEN` (temporary single-device target for worker alerts)
+- `TELEGRAM_DEFAULT_CHAT_ID` (used when request does not include `telegramChatId`)
+- `DEFAULT_TELEGRAM_CHAT_ID` (used by Firebase worker alerts)
+
+Firebase worker:
+
+- `FIREBASE_DATABASE_URL`
+- `FIREBASE_AUTH_TOKEN` (optional static Firebase ID token)
+- `FIREBASE_API_KEY` (required for automatic email/password sign-in)
+- `FIREBASE_AUTH_EMAIL` (required for automatic email/password sign-in)
+- `FIREBASE_AUTH_PASSWORD` (required for automatic email/password sign-in)
+- `FIREBASE_SENSOR_PATH`
+- `ENABLE_FIREBASE_POLLING_WORKER`
+- `FIREBASE_POLL_INTERVAL_MS`
+- `SENSOR_STATUS_FIELDS` (for example: `mq135_status,mq7_status`)
+- `SENSOR_DANGER_STATUS_VALUES` (for example: `dangerous`)
+- `SENSOR_EVENT_TIMESTAMP_FIELD`
+- `ALERT_ON_MISSING_DATA`
+- `NOTIFICATION_COOLDOWN_MS`
+- `SEND_RESOLVED_NOTIFICATION`
 
 ## Current Files (Scratch)
 
 - `src/shared/config/env.js`: environment config
-- `src/infrastructure/expo/expoPushService.js`: Expo push sender
 - `src/infrastructure/telegram/telegramService.js`: Telegram sender
-- `src/application/usecases/sendNotificationWithBackup.js`: notification logic
+- `src/application/usecases/sendNotificationWithBackup.js`: Telegram notification logic
 - `src/presentation/routes/notificationRoutes.js`: API route
 - `src/presentation/workers/firebasePollingWorker.js`: realtime polling worker
 - `src/main/createApp.js`: Express app factory
