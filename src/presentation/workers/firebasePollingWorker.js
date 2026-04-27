@@ -101,8 +101,10 @@ class FirebasePollingWorker {
     this.dangerStatuses = toLowerCsvSet(
       env.SENSOR_DANGER_STATUS_VALUES || env.SENSOR_BAD_STATUS_VALUES
     );
+    this.cleanStatuses = toLowerCsvSet(env.SENSOR_CLEAN_STATUS_VALUES || "clean");
     this.alertOnMissingData = env.ALERT_ON_MISSING_DATA;
     this.sendResolvedNotification = env.SEND_RESOLVED_NOTIFICATION;
+    this.maxIssueNotifications = env.MAX_ISSUE_NOTIFICATIONS;
     this.defaultTelegramChatId = env.DEFAULT_TELEGRAM_CHAT_ID;
 
     this.cachedFirebaseIdToken = env.FIREBASE_AUTH_TOKEN || "";
@@ -115,6 +117,7 @@ class FirebasePollingWorker {
     this.intervalHandle = null;
     this.lastIssueActive = false;
     this.lastIssueSignature = "";
+    this.issueNotificationCount = 0;
   }
 
   hasFirebaseEmailPasswordCredentials() {
@@ -237,6 +240,22 @@ class FirebasePollingWorker {
     };
   }
 
+  isCleanStatus(sensorData) {
+    if (!isRecord(sensorData)) {
+      return false;
+    }
+
+    return this.statusFields.every((statusField) => {
+      const rawStatusValue = getByPath(sensorData, statusField);
+      const normalizedStatusValue = safeString(rawStatusValue).toLowerCase();
+
+      return (
+        normalizedStatusValue &&
+        this.cleanStatuses.has(normalizedStatusValue)
+      );
+    });
+  }
+
   buildDangerAlertMessage(sensorData) {
     const humidity = formatSensorValue(getByPath(sensorData, "humidity"));
     const temperature = formatSensorValue(getByPath(sensorData, "temperature"));
@@ -245,10 +264,25 @@ class FirebasePollingWorker {
 
     return [
       "Kondisi udara ruangan sedang jelek, silahkan cek ruangan anda",
-      `Humandity: ${humidity} %`,
+      `Humidity: ${humidity} %`,
       `Temperature: ${temperature} °c`,
       `MQ135_Status: ${mq135Status}`,
-      `MQ7_status: ${mq7Status}`,
+      `MQ7_Status: ${mq7Status}`,
+    ].join("\n");
+  }
+
+  buildResolvedAlertMessage(sensorData) {
+    const humidity = formatSensorValue(getByPath(sensorData, "humidity"));
+    const temperature = formatSensorValue(getByPath(sensorData, "temperature"));
+    const mq135Status = formatSensorValue(getByPath(sensorData, "mq135_status"));
+    const mq7Status = formatSensorValue(getByPath(sensorData, "mq7_status"));
+
+    return [
+      "Kondisi udara ruangan sudah bersih, ruangan sudah aman",
+      `Humidity: ${humidity} %`,
+      `Temperature: ${temperature} °c`,
+      `MQ135_Status: ${mq135Status}`,
+      `MQ7_Status: ${mq7Status}`,
     ].join("\n");
   }
 
@@ -263,17 +297,8 @@ class FirebasePollingWorker {
 
   async sendResolvedAlert(sensorData) {
     const result = await this.sendTelegramNotification.execute({
-      title: "Air Quality Recovered",
-      body: `Sensor data at ${this.sensorPath} returned to normal`,
+      text: this.buildResolvedAlertMessage(sensorData),
       telegramChatId: this.defaultTelegramChatId,
-      eventType: "sensor-recovered",
-      userId: "firebase-worker",
-      data: {
-        source: "firebase-polling-worker",
-        sensorPath: this.sensorPath,
-        recoveredAt: new Date().toISOString(),
-        snapshot: sensorData,
-      },
     });
 
     return result;
@@ -318,14 +343,17 @@ class FirebasePollingWorker {
 
       if (issue.hasIssue) {
         const signature = issue.reasons.join("|");
+        const canSendMore = this.issueNotificationCount < this.maxIssueNotifications;
         const shouldSend =
-          !this.lastIssueSignature || signature !== this.lastIssueSignature;
+          canSendMore &&
+          (!this.lastIssueSignature || signature !== this.lastIssueSignature);
 
         this.lastIssueActive = true;
         this.lastIssueSignature = signature;
 
         if (shouldSend) {
           const result = await this.sendIssueNotification(sensorData);
+          this.issueNotificationCount += 1;
 
           console.log(
             `[worker] issue notification sent. telegramSuccess=${result.telegram.success}`
@@ -335,16 +363,20 @@ class FirebasePollingWorker {
         return;
       }
 
-      if (this.lastIssueActive && this.sendResolvedNotification) {
+      const isClean = this.isCleanStatus(sensorData);
+
+      if (this.lastIssueActive && this.sendResolvedNotification && isClean) {
         const result = await this.sendResolvedAlert(sensorData);
 
         console.log(
           `[worker] recovered notification sent. telegramSuccess=${result.telegram.success}`
         );
       }
-
-      this.lastIssueActive = false;
-      this.lastIssueSignature = "";
+      if (isClean) {
+        this.lastIssueActive = false;
+        this.lastIssueSignature = "";
+        this.issueNotificationCount = 0;
+      }
     } catch (error) {
       console.error("[worker] firebase polling error:", error.message);
 

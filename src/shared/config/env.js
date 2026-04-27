@@ -50,6 +50,8 @@ const env = {
     process.env.SENSOR_DANGER_STATUS_VALUES ||
     process.env.SENSOR_BAD_STATUS_VALUES ||
     "warning,danger,error,critical",
+  SENSOR_CLEAN_STATUS_VALUES:
+    process.env.SENSOR_CLEAN_STATUS_VALUES || "clean",
   SENSOR_STATUS_FIELD: process.env.SENSOR_STATUS_FIELD || "status",
   SENSOR_BAD_STATUS_VALUES:
     process.env.SENSOR_BAD_STATUS_VALUES || "warning,danger,error,critical",
@@ -59,6 +61,10 @@ const env = {
   NOTIFICATION_COOLDOWN_MS: parsePositiveInteger(
     process.env.NOTIFICATION_COOLDOWN_MS,
     120000
+  ),
+  MAX_ISSUE_NOTIFICATIONS: parsePositiveInteger(
+    process.env.MAX_ISSUE_NOTIFICATIONS,
+    1
   ),
   SEND_RESOLVED_NOTIFICATION: parseBoolean(
     process.env.SEND_RESOLVED_NOTIFICATION,

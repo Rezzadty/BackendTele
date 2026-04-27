@@ -61,9 +61,11 @@ Firebase worker:
 - `FIREBASE_POLL_INTERVAL_MS`
 - `SENSOR_STATUS_FIELDS` (for example: `mq135_status,mq7_status`)
 - `SENSOR_DANGER_STATUS_VALUES` (for example: `dangerous`)
+- `SENSOR_CLEAN_STATUS_VALUES` (for example: `clean`)
 - `SENSOR_EVENT_TIMESTAMP_FIELD`
 - `ALERT_ON_MISSING_DATA`
 - `NOTIFICATION_COOLDOWN_MS`
+- `MAX_ISSUE_NOTIFICATIONS`
 - `SEND_RESOLVED_NOTIFICATION`
 
 ## Current Files (Scratch)
