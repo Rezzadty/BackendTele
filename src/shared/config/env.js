@@ -55,6 +55,10 @@ const env = {
     process.env.SENSOR_OFFLINE_AFTER_MS,
     60000
   ),
+  FIREBASE_OFFLINE_REPEAT_INTERVAL_MS: parsePositiveInteger(
+    process.env.FIREBASE_OFFLINE_REPEAT_INTERVAL_MS,
+    30 * 60 * 1000
+  ),
   ALERT_ON_MISSING_DATA: parseBoolean(process.env.ALERT_ON_MISSING_DATA, true),
   MAX_ISSUE_NOTIFICATIONS: parsePositiveInteger(
     process.env.MAX_ISSUE_NOTIFICATIONS,

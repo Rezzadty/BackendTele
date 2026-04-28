@@ -124,6 +124,7 @@ class FirebasePollingWorker {
     this.pollIntervalMs = env.FIREBASE_POLL_INTERVAL_MS;
     this.sensorTimestampField = env.SENSOR_EVENT_TIMESTAMP_FIELD;
     this.sensorOfflineAfterMs = env.SENSOR_OFFLINE_AFTER_MS;
+    this.offlineRepeatIntervalMs = env.FIREBASE_OFFLINE_REPEAT_INTERVAL_MS;
     this.statusFields = toCsvList(env.SENSOR_STATUS_FIELDS);
     this.dangerStatuses = toLowerCsvSet(env.SENSOR_DANGER_STATUS_VALUES);
     this.cleanStatuses = toLowerCsvSet(env.SENSOR_CLEAN_STATUS_VALUES || "clean");
@@ -144,6 +145,7 @@ class FirebasePollingWorker {
     this.lastIssueSignature = "";
     this.issueNotificationCount = 0;
     this.lastOfflineActive = false;
+    this.lastOfflineNotificationAtMs = 0;
   }
 
   hasFirebaseEmailPasswordCredentials() {
@@ -424,8 +426,14 @@ class FirebasePollingWorker {
       const offlineState = this.getOfflineState(sensorData);
 
       if (offlineState.isOffline) {
-        if (!this.lastOfflineActive) {
+        const now = Date.now();
+        const shouldSendOffline =
+          !this.lastOfflineActive ||
+          now - this.lastOfflineNotificationAtMs >= this.offlineRepeatIntervalMs;
+
+        if (shouldSendOffline) {
           const result = await this.sendOfflineNotification(offlineState);
+          this.lastOfflineNotificationAtMs = now;
 
           console.log(
             `[worker] offline notification sent. telegramSuccess=${result.telegram.success}`
@@ -438,6 +446,7 @@ class FirebasePollingWorker {
 
       if (this.lastOfflineActive) {
         this.lastOfflineActive = false;
+        this.lastOfflineNotificationAtMs = 0;
       }
 
       const issue = this.evaluateIssue(sensorData);
