@@ -52,6 +52,33 @@ function formatSensorValue(value) {
   return normalized || "-";
 }
 
+function parseTimestampMs(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+
+  const raw = safeString(value);
+  if (!raw) {
+    return null;
+  }
+
+  const numeric = Number(raw);
+  if (!Number.isNaN(numeric)) {
+    return numeric < 1e12 ? numeric * 1000 : numeric;
+  }
+
+  const normalized = raw.includes(" ") && !raw.includes("T")
+    ? raw.replace(" ", "T")
+    : raw;
+  const parsed = Date.parse(normalized);
+
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function buildFirebaseJsonUrl(databaseUrl, sensorPath, authToken) {
   const base = String(databaseUrl || "").replace(/\/+$/, "");
   const cleanPath = String(sensorPath || "")
@@ -95,12 +122,10 @@ class FirebasePollingWorker {
     this.firebaseAuthPassword = env.FIREBASE_AUTH_PASSWORD;
     this.sensorPath = env.FIREBASE_SENSOR_PATH;
     this.pollIntervalMs = env.FIREBASE_POLL_INTERVAL_MS;
-    this.statusFields = toCsvList(
-      env.SENSOR_STATUS_FIELDS || env.SENSOR_STATUS_FIELD
-    );
-    this.dangerStatuses = toLowerCsvSet(
-      env.SENSOR_DANGER_STATUS_VALUES || env.SENSOR_BAD_STATUS_VALUES
-    );
+    this.sensorTimestampField = env.SENSOR_EVENT_TIMESTAMP_FIELD;
+    this.sensorOfflineAfterMs = env.SENSOR_OFFLINE_AFTER_MS;
+    this.statusFields = toCsvList(env.SENSOR_STATUS_FIELDS);
+    this.dangerStatuses = toLowerCsvSet(env.SENSOR_DANGER_STATUS_VALUES);
     this.cleanStatuses = toLowerCsvSet(env.SENSOR_CLEAN_STATUS_VALUES || "clean");
     this.alertOnMissingData = env.ALERT_ON_MISSING_DATA;
     this.sendResolvedNotification = env.SEND_RESOLVED_NOTIFICATION;
@@ -118,6 +143,7 @@ class FirebasePollingWorker {
     this.lastIssueActive = false;
     this.lastIssueSignature = "";
     this.issueNotificationCount = 0;
+    this.lastOfflineActive = false;
   }
 
   hasFirebaseEmailPasswordCredentials() {
@@ -256,6 +282,35 @@ class FirebasePollingWorker {
     });
   }
 
+  getOfflineState(sensorData) {
+    if (!isRecord(sensorData)) {
+      return {
+        isOffline: false,
+        ageMs: 0,
+        rawTimestamp: "",
+      };
+    }
+
+    const rawTimestamp = getByPath(sensorData, this.sensorTimestampField);
+    const timestampMs = parseTimestampMs(rawTimestamp);
+
+    if (!timestampMs) {
+      return {
+        isOffline: false,
+        ageMs: 0,
+        rawTimestamp: safeString(rawTimestamp),
+      };
+    }
+
+    const ageMs = Math.max(Date.now() - timestampMs, 0);
+
+    return {
+      isOffline: ageMs >= this.sensorOfflineAfterMs,
+      ageMs,
+      rawTimestamp: safeString(rawTimestamp),
+    };
+  }
+
   buildDangerAlertMessage(sensorData) {
     const humidity = formatSensorValue(getByPath(sensorData, "humidity"));
     const temperature = formatSensorValue(getByPath(sensorData, "temperature"));
@@ -263,7 +318,7 @@ class FirebasePollingWorker {
     const mq7Status = formatSensorValue(getByPath(sensorData, "mq7_status"));
 
     return [
-      "Kondisi udara ruangan sedang jelek, silahkan cek ruangan anda",
+      "Kualitas udara ruangan sedang jelek, silahkan cek ruangan anda",
       `Humidity: ${humidity} %`,
       `Temperature: ${temperature} °c`,
       `MQ135_Status: ${mq135Status}`,
@@ -278,11 +333,29 @@ class FirebasePollingWorker {
     const mq7Status = formatSensorValue(getByPath(sensorData, "mq7_status"));
 
     return [
-      "Kondisi udara ruangan sudah bersih, ruangan sudah aman",
+      "Kualitas udara ruangan sudah bagus, ruangan sudah aman",
       `Humidity: ${humidity} %`,
       `Temperature: ${temperature} °c`,
       `MQ135_Status: ${mq135Status}`,
       `MQ7_Status: ${mq7Status}`,
+    ].join("\n");
+  }
+
+  buildOfflineAlertMessage(offlineState) {
+    const lastSeenText = offlineState.rawTimestamp || "-";
+    const totalMinutes = Math.floor(offlineState.ageMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const ageText = hours > 0
+      ? `${hours} jam ${minutes} menit`
+      : totalMinutes > 0
+        ? `${totalMinutes} menit`
+        : "< 1 menit";
+
+    return [
+      "Microcontroller tidak mengirim data terbaru (offline).",
+      `Terakhir update: ${lastSeenText}`,
+      `Selisih: ${ageText}`,
     ].join("\n");
   }
 
@@ -298,6 +371,15 @@ class FirebasePollingWorker {
   async sendResolvedAlert(sensorData) {
     const result = await this.sendTelegramNotification.execute({
       text: this.buildResolvedAlertMessage(sensorData),
+      telegramChatId: this.defaultTelegramChatId,
+    });
+
+    return result;
+  }
+
+  async sendOfflineNotification(offlineState) {
+    const result = await this.sendTelegramNotification.execute({
+      text: this.buildOfflineAlertMessage(offlineState),
       telegramChatId: this.defaultTelegramChatId,
     });
 
@@ -339,6 +421,25 @@ class FirebasePollingWorker {
 
     try {
       const sensorData = await this.fetchSensorData();
+      const offlineState = this.getOfflineState(sensorData);
+
+      if (offlineState.isOffline) {
+        if (!this.lastOfflineActive) {
+          const result = await this.sendOfflineNotification(offlineState);
+
+          console.log(
+            `[worker] offline notification sent. telegramSuccess=${result.telegram.success}`
+          );
+        }
+
+        this.lastOfflineActive = true;
+        return;
+      }
+
+      if (this.lastOfflineActive) {
+        this.lastOfflineActive = false;
+      }
+
       const issue = this.evaluateIssue(sensorData);
 
       if (issue.hasIssue) {

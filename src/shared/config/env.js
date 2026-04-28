@@ -45,23 +45,17 @@ const env = {
     5000
   ),
   SENSOR_STATUS_FIELDS:
-    process.env.SENSOR_STATUS_FIELDS || process.env.SENSOR_STATUS_FIELD || "status",
+    process.env.SENSOR_STATUS_FIELDS || "status",
   SENSOR_DANGER_STATUS_VALUES:
-    process.env.SENSOR_DANGER_STATUS_VALUES ||
-    process.env.SENSOR_BAD_STATUS_VALUES ||
-    "warning,danger,error,critical",
-  SENSOR_CLEAN_STATUS_VALUES:
-    process.env.SENSOR_CLEAN_STATUS_VALUES || "clean",
-  SENSOR_STATUS_FIELD: process.env.SENSOR_STATUS_FIELD || "status",
-  SENSOR_BAD_STATUS_VALUES:
-    process.env.SENSOR_BAD_STATUS_VALUES || "warning,danger,error,critical",
+    process.env.SENSOR_DANGER_STATUS_VALUES || "warning,danger,error,critical",
+  SENSOR_CLEAN_STATUS_VALUES: process.env.SENSOR_CLEAN_STATUS_VALUES || "clean",
   SENSOR_EVENT_TIMESTAMP_FIELD:
     process.env.SENSOR_EVENT_TIMESTAMP_FIELD || "updatedAt",
-  ALERT_ON_MISSING_DATA: parseBoolean(process.env.ALERT_ON_MISSING_DATA, true),
-  NOTIFICATION_COOLDOWN_MS: parsePositiveInteger(
-    process.env.NOTIFICATION_COOLDOWN_MS,
-    120000
+  SENSOR_OFFLINE_AFTER_MS: parsePositiveInteger(
+    process.env.SENSOR_OFFLINE_AFTER_MS,
+    60000
   ),
+  ALERT_ON_MISSING_DATA: parseBoolean(process.env.ALERT_ON_MISSING_DATA, true),
   MAX_ISSUE_NOTIFICATIONS: parsePositiveInteger(
     process.env.MAX_ISSUE_NOTIFICATIONS,
     1
