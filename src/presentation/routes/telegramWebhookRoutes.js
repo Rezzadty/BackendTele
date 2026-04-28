@@ -20,6 +20,12 @@ function isStatusCommand(text) {
   return normalized === "/status" || normalized.startsWith("/status@");
 }
 
+function isInfoCommand(text) {
+  const normalized = String(text || "").trim().toLowerCase();
+
+  return normalized === "/info" || normalized.startsWith("/info@");
+}
+
 function buildStatusErrorMessage(error) {
   const detail = error?.message ? String(error.message).trim() : "";
 
@@ -35,7 +41,7 @@ function createTelegramWebhookRoutes({ firebasePollingWorker, sendTelegramNotifi
     try {
       const message = extractTelegramMessage(req.body);
 
-      if (!message || !isStatusCommand(message.text)) {
+      if (!message || (!isStatusCommand(message.text) && !isInfoCommand(message.text))) {
         return res.json({
           ok: true,
           ignored: true,
@@ -48,6 +54,18 @@ function createTelegramWebhookRoutes({ firebasePollingWorker, sendTelegramNotifi
         return res.status(400).json({
           ok: false,
           message: "Missing chat id",
+        });
+      }
+
+      if (isInfoCommand(message.text)) {
+        const result = await sendTelegramNotification.execute({
+          text: firebasePollingWorker.buildInfoMessage(),
+          telegramChatId: chatId,
+        });
+
+        return res.json({
+          ok: result.telegram.success,
+          result,
         });
       }
 

@@ -361,6 +361,16 @@ class FirebasePollingWorker {
     ].join("\n");
   }
 
+  buildInfoMessage() {
+    return [
+      "Device information:",
+      "- Data Realtime dan data tersimpan tiap 30 menit",
+      "- Microcontroller: ESP8266",
+      "- Sensors: MQ7, MQ135, DHT20",
+      "- MQ7 and MQ135 sensors Menggunakan ADS1115 untuk modulenya",
+    ].join("\n");
+  }
+
   buildStatusMessage(sensorData) {
     const offlineState = this.getOfflineState(sensorData);
     const lastSeenText = offlineState.rawTimestamp || "-";
