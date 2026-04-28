@@ -361,6 +361,27 @@ class FirebasePollingWorker {
     ].join("\n");
   }
 
+  buildStatusMessage(sensorData) {
+    const offlineState = this.getOfflineState(sensorData);
+    const lastSeenText = offlineState.rawTimestamp || "-";
+    const statusText = offlineState.isOffline
+      ? "Microcontroller Offline"
+      : "Microcontroller Online";
+
+    const humidity = formatSensorValue(getByPath(sensorData, "humidity"));
+    const temperature = formatSensorValue(getByPath(sensorData, "temperature"));
+    const mq135Status = formatSensorValue(getByPath(sensorData, "mq135_status"));
+    const mq7Status = formatSensorValue(getByPath(sensorData, "mq7_status"));
+
+    return [
+      `${statusText}, Last update data ${lastSeenText}.`,
+      `Humidity: ${humidity} %`,
+      `Temperature: ${temperature} °c`,
+      `MQ135_Status: ${mq135Status}`,
+      `MQ7_Status: ${mq7Status}`,
+    ].join("\n");
+  }
+
   async sendIssueNotification(sensorData) {
     const result = await this.sendTelegramNotification.execute({
       text: this.buildDangerAlertMessage(sensorData),

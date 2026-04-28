@@ -23,7 +23,10 @@ function bootstrap() {
     sendTelegramNotification,
   });
 
-  const app = createApp({ sendTelegramNotification });
+  const app = createApp({
+    sendTelegramNotification,
+    firebasePollingWorker,
+  });
 
   getRuntimeWarnings().forEach((warning) => {
     console.warn(`[config-warning] ${warning}`);
