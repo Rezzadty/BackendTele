@@ -321,10 +321,10 @@ class FirebasePollingWorker {
 
     return [
       "Kualitas udara ruangan sedang jelek, silahkan cek ruangan anda",
-      `Humidity: ${humidity} %`,
-      `Temperature: ${temperature} °c`,
-      `MQ135_Status: ${mq135Status}`,
-      `MQ7_Status: ${mq7Status}`,
+      `Kelembapan Ruangan : ${humidity} %`,
+      `Temperature Ruangan: ${temperature} °c`,
+      `Kualtias Udara : ${mq135Status}`,
+      `Karbon Dioksida  : ${mq7Status}`,
     ].join("\n");
   }
 
@@ -336,10 +336,10 @@ class FirebasePollingWorker {
 
     return [
       "Kualitas udara ruangan sudah bagus, ruangan sudah aman",
-      `Humidity: ${humidity} %`,
-      `Temperature: ${temperature} °c`,
-      `MQ135_Status: ${mq135Status}`,
-      `MQ7_Status: ${mq7Status}`,
+      `Kelembapan Ruangan : ${humidity} %`,
+      `Temperature Ruangan : ${temperature} °c`,
+      `Kualitas Udara : ${mq135Status}`,
+      `Karbon Dioksida  : ${mq7Status}`,
     ].join("\n");
   }
 
@@ -355,7 +355,7 @@ class FirebasePollingWorker {
         : "< 1 menit";
 
     return [
-      "Microcontroller tidak mengirim data terbaru (offline).",
+      "Microcontroller (offline).",
       `Terakhir update: ${lastSeenText}`,
       `Selisih: ${ageText}`,
     ].join("\n");
@@ -365,9 +365,10 @@ class FirebasePollingWorker {
     return [
       "Device information:",
       "- Data Realtime dan data tersimpan tiap 30 menit",
-      "- Microcontroller: ESP8266",
-      "- Sensors: MQ7, MQ135, DHT20",
-      "- MQ7 and MQ135 sensors Menggunakan ADS1115 untuk modulenya",
+      "- Microcontroller ESP8266 yang disupport HW-389",
+      "- DHT20 sensor untuk kelembapan dan temperatur",
+      "- MQ7 sensor karbon dioksida dan MQ135 sensors untuk mendeteksi kualitas udara",
+      "- Serta menggunakan ADS1115 untuk modulenya",
     ].join("\n");
   }
 
@@ -384,11 +385,11 @@ class FirebasePollingWorker {
     const mq7Status = formatSensorValue(getByPath(sensorData, "mq7_status"));
 
     return [
-      `${statusText}, Last update data ${lastSeenText}.`,
-      `Humidity: ${humidity} %`,
-      `Temperature: ${temperature} °c`,
-      `MQ135_Status: ${mq135Status}`,
-      `MQ7_Status: ${mq7Status}`,
+      `${statusText}, Data Terakhir Update : ${lastSeenText}.`,
+      `Kelembapan Ruangan : ${humidity} %`,
+      `Temperature : ${temperature} °c`,
+      `Kualitas Udara : ${mq135Status}`,
+      `Karbon Dioksida : ${mq7Status}`,
     ].join("\n");
   }
 
