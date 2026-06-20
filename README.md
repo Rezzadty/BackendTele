@@ -8,6 +8,17 @@
 
 This project uses Express.js. It checks Firebase Realtime Database updates from the microcontroller and sends notifications through a Telegram bot.
 
+## Project Context
+
+> **This repository is the Telegram backend for the backup notification system of the [Gomi Project](https://github.com/Rezzadty/Gomi).**
+
+The [Gomi Project](https://github.com/Rezzadty/Gomi) is an air quality monitoring application that tracks sensor data (e.g., MQ135, MQ7) and alerts users when air quality reaches a **bad/poor** level. This backend service acts as a **fallback/backup notification channel** — it ensures that users still receive Telegram alerts about dangerous air quality conditions in the event that the main Gomi application fails to deliver notifications (e.g., app is closed, push notification service is unavailable, or the device is offline).
+
+In short:
+
+- **Primary**: Gomi mobile app sends in-app notifications about air quality status.
+- **Backup (this repo)**: If the Gomi app does not send a notification, this Telegram backend polls Firebase Realtime Database and automatically sends a Telegram alert to the configured chat when poor/bad air quality is detected.
+
 Current implementation flow:
 
 1. Send Telegram notification manually through API endpoint.
